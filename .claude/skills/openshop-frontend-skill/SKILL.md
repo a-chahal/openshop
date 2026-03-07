@@ -6,578 +6,221 @@ description: Senior UI/UX Engineer for OpenShop SD. Dark-theme investigation boa
 # OpenShop SD — Frontend Design Skill
 
 ## 1. ACTIVE BASELINE CONFIGURATION
-* DESIGN_VARIANCE: 7 (Asymmetric constellation layout, organic widget placement)
-* MOTION_INTENSITY: 7 (Spring physics everywhere, perpetual avatar, staggered reveals)
-* VISUAL_DENSITY: 5 (Breathing room in widgets, but information-rich narratives)
+* DESIGN_VARIANCE: 8 (1=Perfect Symmetry, 10=Artsy Chaos)
+* MOTION_INTENSITY: 6 (1=Static/No movement, 10=Cinematic/Magic Physics)
+* VISUAL_DENSITY: 4 (1=Art Gallery/Airy, 10=Pilot Cockpit/Packed Data)
 
-**AI Instruction:** These values are calibrated for OpenShop's investigation board aesthetic. Every widget must feel like a discovered artifact on a dark canvas — weighted, glowing, purposeful. The board should feel alive without feeling busy. Adapt these values dynamically if the user requests changes in chat.
+**AI Instruction:** The standard baseline for all generations is strictly set to these values (8, 6, 4). Do not ask the user to edit this file. Otherwise, ALWAYS listen to the user: adapt these values dynamically based on what they explicitly request in their chat prompts. Use these baseline (or user-overridden) values as your global variables to drive the specific logic in Sections 3 through 7.
 
-## 2. PROJECT ARCHITECTURE & CONVENTIONS
+## 2. DEFAULT ARCHITECTURE & CONVENTIONS
+Unless the user explicitly specifies a different stack, adhere to these structural constraints to maintain consistency:
 
-### Stack (Non-Negotiable)
-* **Framework:** React 18+ with Vite (NOT Next.js — this is a single-page spatial app)
-* **Canvas System:** `@xyflow/react` (React Flow v12) — all widgets are custom nodes
-* **Animation:** `framer-motion` — all entrance/exit/layout animations + avatar physics
-* **State:** `zustand` — single store for board state, nodes, edges, avatar, phase
-* **Styling:** Tailwind CSS (pre-defined utility classes only — no compiler, no JIT)
-* **Map:** `react-map-gl` + `mapbox-gl` (dark style: `mapbox://styles/mapbox/dark-v11`)
-* **Charts:** `recharts` — lightweight, works inside React Flow custom nodes
-* **Icons:** `@phosphor-icons/react` exclusively. Weight: `regular` or `light`. Size: 20px default.
+* **DEPENDENCY VERIFICATION [MANDATORY]:** Before importing ANY 3rd party library (e.g. `framer-motion`, `lucide-react`, `zustand`), you MUST check `package.json`. If the package is missing, you MUST output the installation command (e.g. `npm install package-name`) before providing the code. **Never** assume a library exists.
+* **Framework & Interactivity:** React or Next.js. Default to Server Components (`RSC`). 
+    * **RSC SAFETY:** Global state works ONLY in Client Components. In Next.js, wrap providers in a `"use client"` component.
+    * **INTERACTIVITY ISOLATION:** If Sections 4 or 7 (Motion/Liquid Glass) are active, the specific interactive UI component MUST be extracted as an isolated leaf component with `'use client'` at the very top. Server Components must exclusively render static layouts.
+* **State Management:** Use local `useState`/`useReducer` for isolated UI. Use global state strictly for deep prop-drilling avoidance.
+* **Styling Policy:** Use Tailwind CSS (v3/v4) for 90% of styling. 
+    * **TAILWIND VERSION LOCK:** Check `package.json` first. Do not use v4 syntax in v3 projects. 
+    * **T4 CONFIG GUARD:** For v4, do NOT use `tailwindcss` plugin in `postcss.config.js`. Use `@tailwindcss/postcss` or the Vite plugin.
+* **ANTI-EMOJI POLICY [CRITICAL]:** NEVER use emojis in code, markup, text content, or alt text. Replace symbols with high-quality icons (Radix, Phosphor) or clean SVG primitives. Emojis are BANNED.
+* **Responsiveness & Spacing:**
+  * Standardize breakpoints (`sm`, `md`, `lg`, `xl`).
+  * Contain page layouts using `max-w-[1400px] mx-auto` or `max-w-7xl`.
+  * **Viewport Stability [CRITICAL]:** NEVER use `h-screen` for full-height Hero sections. ALWAYS use `min-h-[100dvh]` to prevent catastrophic layout jumping on mobile browsers (iOS Safari).
+  * **Grid over Flex-Math:** NEVER use complex flexbox percentage math (`w-[calc(33%-1rem)]`). ALWAYS use CSS Grid (`grid grid-cols-1 md:grid-cols-3 gap-6`) for reliable structures.
+* **Icons:** You MUST use exactly `@phosphor-icons/react` or `@radix-ui/react-icons` as the import paths (check installed version). Standardize `strokeWidth` globally (e.g., exclusively use `1.5` or `2.0`).
 
-### Dependency Verification [MANDATORY]
-Before importing ANY library, check `package.json`. If missing, output the install command first. Never assume a package exists.
 
-### Component Isolation Rules
-* React Flow custom nodes MUST be standalone components (not inline)
-* Any component with Framer Motion `useMotionValue`, `useSpring`, or infinite animation MUST be wrapped in `React.memo` and isolated as its own component
-* The avatar is NOT a React Flow node — it's an absolutely positioned overlay synced to the React Flow viewport transform
-* Mapbox GL is either a background layer OR a large React Flow node — never both
+## 3. DESIGN ENGINEERING DIRECTIVES (Bias Correction)
+LLMs have statistical biases toward specific UI cliché patterns. Proactively construct premium interfaces using these engineered rules:
 
-### State Architecture
-```
-Zustand Store Shape:
-├── phase: 'entry' | 'identity' | 'feasibility' | 'nuance' | 'synthesis' | 'action'
-├── nodes: ReactFlowNode[]          // Each node.data contains BoardWidgetData
-├── edges: ReactFlowEdge[]          // Custom InsightEdge type
-├── avatarPosition: { x, y }
-├── avatarState: 'idle' | 'thinking' | 'moving'
-├── businessType: string
-├── address: string
-├── geocoded: { lat, lng } | null
-├── answers: Record<string, any>
-├── processActions(actions: BoardAction[]): void
-├── addWidget / updateWidget / addConnection / moveAvatar
-└── reset(): void
-```
+**Rule 1: Deterministic Typography**
+* **Display/Headlines:** Default to `text-4xl md:text-6xl tracking-tighter leading-none`.
+    * **ANTI-SLOP:** Discourage `Inter` for "Premium" or "Creative" vibes. Force unique character using `Geist`, `Outfit`, `Cabinet Grotesk`, or `Satoshi`.
+    * **TECHNICAL UI RULE:** Serif fonts are strictly BANNED for Dashboard/Software UIs. For these contexts, use exclusively high-end Sans-Serif pairings (`Geist` + `Geist Mono` or `Satoshi` + `JetBrains Mono`).
+* **Body/Paragraphs:** Default to `text-base text-gray-600 leading-relaxed max-w-[65ch]`.
 
-## 3. THE OPENSHOP DARK AESTHETIC
+**Rule 2: Color Calibration**
+* **Constraint:** Max 1 Accent Color. Saturation < 80%.
+* **THE LILA BAN:** The "AI Purple/Blue" aesthetic is strictly BANNED. No purple button glows, no neon gradients. Use absolute neutral bases (Zinc/Slate) with high-contrast, singular accents (e.g. Emerald, Electric Blue, or Deep Rose).
+* **COLOR CONSISTENCY:** Stick to one palette for the entire output. Do not fluctuate between warm and cool grays within the same project.
 
-### Color System (The Only Palette)
-OpenShop uses a single, disciplined dark palette. No warm grays. No purple. No neon.
+**Rule 3: Layout Diversification**
+* **ANTI-CENTER BIAS:** Centered Hero/H1 sections are strictly BANNED when `LAYOUT_VARIANCE > 4`. Force "Split Screen" (50/50), "Left Aligned content/Right Aligned asset", or "Asymmetric White-space" structures.
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--canvas-bg` | `#06060a` | Main canvas background |
-| `--canvas-grid` | `rgba(148, 163, 184, 0.03)` | Subtle dot grid pattern |
-| `--widget-bg` | `rgba(15, 15, 23, 0.92)` | Widget card fill |
-| `--widget-border` | `rgba(148, 163, 184, 0.08)` | Default widget border |
-| `--widget-border-hover` | `rgba(148, 163, 184, 0.15)` | Hover state |
-| `--text-primary` | `#f1f5f9` | Slate-100 — headlines, key data |
-| `--text-secondary` | `#94a3b8` | Slate-400 — body text, labels |
-| `--text-muted` | `#475569` | Slate-600 — metadata, timestamps |
-| `--glow-green` | `rgb(74, 222, 128)` | Positive signal |
-| `--glow-amber` | `rgb(251, 191, 36)` | Mixed/warning signal |
-| `--glow-red` | `rgb(248, 113, 113)` | Blocking/negative signal |
-| `--glow-neutral` | `rgb(148, 163, 184)` | Informational, no signal |
-| `--avatar-core` | `rgb(147, 197, 253)` | Blue-200 — avatar orb |
-| `--connection-line` | `rgba(148, 163, 184, 0.2)` | Edge/connection default |
-| `--accent` | `#3b82f6` | Blue-500 — buttons, links, focus rings |
+**Rule 4: Materiality, Shadows, and "Anti-Card Overuse"**
+* **DASHBOARD HARDENING:** For `VISUAL_DENSITY > 7`, generic card containers are strictly BANNED. Use logic-grouping via `border-t`, `divide-y`, or purely negative space. Data metrics should breathe without being boxed in unless elevation (z-index) is functionally required.
+* **Execution:** Use cards ONLY when elevation communicates hierarchy. When a shadow is used, tint it to the background hue.
 
-**THE LILA BAN:** Purple, violet, magenta, fuchsia are BANNED. No AI-purple glows. No neon gradients. The palette is cold slate + blue with green/amber/red signal glows only.
+**Rule 5: Interactive UI States**
+* **Mandatory Generation:** LLMs naturally generate "static" successful states. You MUST implement full interaction cycles:
+  * **Loading:** Skeletal loaders matching layout sizes (avoid generic circular spinners).
+  * **Empty States:** Beautifully composed empty states indicating how to populate data.
+  * **Error States:** Clear, inline error reporting (e.g., forms).
+  * **Tactile Feedback:** On `:active`, use `-translate-y-[1px]` or `scale-[0.98]` to simulate a physical push indicating success/action.
 
-**THE PURE BLACK BAN:** Never use `#000000`. The darkest value is `#06060a`. Zinc-950 (`#09090b`) is acceptable for deeply nested elements.
+**Rule 6: Data & Form Patterns**
+* **Forms:** Label MUST sit above input. Helper text is optional but should exist in markup. Error text below input. Use a standard `gap-2` for input blocks.
+
+## 4. CREATIVE PROACTIVITY (Anti-Slop Implementation)
+To actively combat generic AI designs, systematically implement these high-end coding concepts as your baseline:
+* **"Liquid Glass" Refraction:** When glassmorphism is needed, go beyond `backdrop-blur`. Add a 1px inner border (`border-white/10`) and a subtle inner shadow (`shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]`) to simulate physical edge refraction.
+* **Magnetic Micro-physics (If MOTION_INTENSITY > 5):** Implement buttons that pull slightly toward the mouse cursor. **CRITICAL:** NEVER use React `useState` for magnetic hover or continuous animations. Use EXCLUSIVELY Framer Motion's `useMotionValue` and `useTransform` outside the React render cycle to prevent performance collapse on mobile.
+* **Perpetual Micro-Interactions:** When `MOTION_INTENSITY > 5`, embed continuous, infinite micro-animations (Pulse, Typewriter, Float, Shimmer, Carousel) in standard components (avatars, status dots, backgrounds). Apply premium Spring Physics (`type: "spring", stiffness: 100, damping: 20`) to all interactive elements—no linear easing.
+* **Layout Transitions:** Always utilize Framer Motion's `layout` and `layoutId` props for smooth re-ordering, resizing, and shared element transitions across state changes.
+* **Staggered Orchestration:** Do not mount lists or grids instantly. Use `staggerChildren` (Framer) or CSS cascade (`animation-delay: calc(var(--index) * 100ms)`) to create sequential waterfall reveals. **CRITICAL:** For `staggerChildren`, the Parent (`variants`) and Children MUST reside in the identical Client Component tree. If data is fetched asynchronously, pass the data as props into a centralized Parent Motion wrapper.
+
+## 5. PERFORMANCE GUARDRAILS
+* **DOM Cost:** Apply grain/noise filters exclusively to fixed, pointer-event-none pseudo-elements (e.g., `fixed inset-0 z-50 pointer-events-none`) and NEVER to scrolling containers to prevent continuous GPU repaints and mobile performance degradation.
+* **Hardware Acceleration:** Never animate `top`, `left`, `width`, or `height`. Animate exclusively via `transform` and `opacity`.
+* **Z-Index Restraint:** NEVER spam arbitrary `z-50` or `z-10` unprompted. Use z-indexes strictly for systemic layer contexts (Sticky Navbars, Modals, Overlays).
+
+## 6. TECHNICAL REFERENCE (Dial Definitions)
+
+### DESIGN_VARIANCE (Level 1-10)
+* **1-3 (Predictable):** Flexbox `justify-center`, strict 12-column symmetrical grids, equal paddings.
+* **4-7 (Offset):** Use `margin-top: -2rem` overlapping, varied image aspect ratios (e.g., 4:3 next to 16:9), left-aligned headers over center-aligned data.
+* **8-10 (Asymmetric):** Masonry layouts, CSS Grid with fractional units (e.g., `grid-template-columns: 2fr 1fr 1fr`), massive empty zones (`padding-left: 20vw`). 
+* **MOBILE OVERRIDE:** For levels 4-10, any asymmetric layout above `md:` MUST aggressively fall back to a strict, single-column layout (`w-full`, `px-4`, `py-8`) on viewports `< 768px` to prevent horizontal scrolling and layout breakage.
+
+### MOTION_INTENSITY (Level 1-10)
+* **1-3 (Static):** No automatic animations. CSS `:hover` and `:active` states only.
+* **4-7 (Fluid CSS):** Use `transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1)`. Use `animation-delay` cascades for load-ins. Focus strictly on `transform` and `opacity`. Use `will-change: transform` sparingly.
+* **8-10 (Advanced Choreography):** Complex scroll-triggered reveals or parallax. Use Framer Motion hooks. NEVER use `window.addEventListener('scroll')`.
+
+### VISUAL_DENSITY (Level 1-10)
+* **1-3 (Art Gallery Mode):** Lots of white space. Huge section gaps. Everything feels very expensive and clean.
+* **4-7 (Daily App Mode):** Normal spacing for standard web apps.
+* **8-10 (Cockpit Mode):** Tiny paddings. No card boxes; just 1px lines to separate data. Everything is packed. **Mandatory:** Use Monospace (`font-mono`) for all numbers.
+
+## 7. AI TELLS (Forbidden Patterns)
+To guarantee a premium, non-generic output, you MUST strictly avoid these common AI design signatures unless explicitly requested:
+
+### Visual & CSS
+* **NO Neon/Outer Glows:** Do not use default `box-shadow` glows or auto-glows. Use inner borders or subtle tinted shadows.
+* **NO Pure Black:** Never use `#000000`. Use Off-Black, Zinc-950, or Charcoal.
+* **NO Oversaturated Accents:** Desaturate accents to blend elegantly with neutrals.
+* **NO Excessive Gradient Text:** Do not use text-fill gradients for large headers.
+* **NO Custom Mouse Cursors:** They are outdated and ruin performance/accessibility.
 
 ### Typography
-* **Font Stack:** `'Geist', 'Geist Mono', system-ui, -apple-system, sans-serif`
-* **Load Geist via CDN or npm.** If unavailable, fall back to `'Inter'` as last resort only.
-* **Headlines/Widget Titles:** `text-sm font-medium tracking-tight text-slate-100`
-  (NOT large — widgets are compact. Hierarchy comes from weight and glow, not size)
-* **Narrative Text:** `text-sm text-slate-300 leading-relaxed`
-* **Data Values:** `text-2xl font-semibold tracking-tight text-slate-50 tabular-nums`
-* **Metadata/Labels:** `text-xs text-slate-500 uppercase tracking-wider`
-* **Monospace (numbers in charts):** `font-mono text-xs text-slate-400 tabular-nums`
-
-**ANTI-OVERSIZE RULE:** No text larger than `text-2xl` anywhere on the board. Widget titles are `text-sm`. The entry screen headline can be `text-3xl` maximum. Hierarchy is communicated through glow, weight, spacing — not font size.
-
-### The Glow System (Widget Health Signal)
-Every widget has a status glow implemented via `box-shadow`. This is THE primary visual language of OpenShop — the board's color temperature tells the story at a glance.
-
-```css
-/* Green — positive signal */
-.glow-green {
-  box-shadow:
-    0 0 0 1px rgba(74, 222, 128, 0.15),
-    0 0 20px rgba(74, 222, 128, 0.12),
-    0 0 40px rgba(74, 222, 128, 0.04);
-}
-
-/* Amber — mixed/warning */
-.glow-amber {
-  box-shadow:
-    0 0 0 1px rgba(251, 191, 36, 0.15),
-    0 0 20px rgba(251, 191, 36, 0.12),
-    0 0 40px rgba(251, 191, 36, 0.04);
-}
-
-/* Red — blocking/negative */
-.glow-red {
-  box-shadow:
-    0 0 0 1px rgba(248, 113, 113, 0.15),
-    0 0 20px rgba(248, 113, 113, 0.12),
-    0 0 40px rgba(248, 113, 113, 0.04);
-}
-
-/* Neutral — informational */
-.glow-neutral {
-  box-shadow:
-    0 0 0 1px rgba(148, 163, 184, 0.06),
-    0 0 10px rgba(148, 163, 184, 0.04);
-}
-```
-
-**Glow Transition:** `transition: box-shadow 0.8s cubic-bezier(0.16, 1, 0.3, 1)` — slow, smooth glow shifts feel intentional, not jarring.
-
-**CRITICAL:** Glow color is determined by structured data (deterministic), NOT by the LLM. The backend sets `glowColor` in every `BoardAction`. The frontend just applies the CSS class.
-
-### Widget Surface Treatment
-```css
-/* Base widget card */
-.board-widget {
-  background: rgba(15, 15, 23, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(148, 163, 184, 0.08);
-  border-radius: 1rem;
-  /* Inner light refraction edge — simulates physical glass */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-/* Hover lift */
-.board-widget:hover {
-  border-color: rgba(148, 163, 184, 0.15);
-  transform: translateY(-1px);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-```
-
-**NO OUTER GLOW ON HOVER.** The status glow is permanent and signal-driven. Hover only changes border brightness and subtle Y-translation. Never stack glow effects.
-
-## 4. THE BOARD CANVAS
-
-### Background
-The canvas is NOT plain black. It has a subtle grid pattern that gives spatial reference:
-
-```css
-.canvas-background {
-  background-color: #06060a;
-  background-image:
-    radial-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-```
-
-Add a subtle radial vignette gradient overlay at canvas edges:
-```css
-.canvas-vignette {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse at center,
-    transparent 50%,
-    rgba(6, 6, 10, 0.6) 100%
-  );
-  z-index: 5;
-}
-```
-
-### React Flow Configuration
-```typescript
-const rfStyle = {
-  background: 'transparent',  // Canvas bg handled by CSS
-};
-
-const defaultEdgeOptions = {
-  type: 'insightEdge',
-  animated: true,
-  style: { stroke: 'rgba(148, 163, 184, 0.2)', strokeWidth: 1 },
-};
-
-// Disable default React Flow controls/minimap for clean aesthetic
-// Add a minimal custom minimap if needed (bottom-right, translucent)
-```
-
-### Widget Positioning Philosophy
-Widgets do NOT snap to a grid. They're positioned by the orchestrator in a constellation pattern radiating outward from center:
-* **Phase 1 widgets** (zoning): position at ~(-300, -100) — upper-left quadrant
-* **Phase 2 widgets** (competition, traffic, safety): spread across center and right
-* **Phase 3 widgets** (follow-up questions): below center, near the avatar's home
-* **Phase 4-5 widgets** (permits, synthesis): right side and bottom
-
-The avatar's home position is `(0, 0)`. Widgets orbit around it. Early widgets are closer to center, later ones further out. The board grows organically like a constellation, not a grid.
-
-## 5. WIDGET COMPONENT ARCHITECTURE
-
-### The Universal Widget Node
-Every widget on the board is a single `BoardWidget` React Flow custom node. It renders differently based on `data.widgetType` and `data.mode`.
-
-```typescript
-interface BoardWidgetData {
-  widgetId: string;
-  widgetType: 'verdict' | 'metric' | 'list' | 'chart' | 'timeline' | 'narrative' | 'input';
-  mode: 'ask' | 'show' | 'loading';
-  glowColor: 'green' | 'amber' | 'red' | 'neutral';
-  title?: string;
-  data: any;
-  narrative: string;
-  // For input mode:
-  question?: string;
-  inputType?: 'text' | 'select' | 'toggle' | 'slider' | 'time_range';
-  options?: string[];
-}
-```
-
-### Widget Dimensions
-* **Max width:** 320px (compact, never sprawling)
-* **Min width:** 240px
-* **Padding:** `p-5` (20px) inside the card
-* **Border radius:** `rounded-2xl` (1rem)
-* **Max height:** Content-driven, but cap narrative at 4 lines with expand toggle
-
-### Widget Type Renderers
-
-**Verdict** (zoning result):
-* Large Phosphor icon top-left: `CheckCircle` (green), `Warning` (amber), `XCircle` (red)
-* Icon size: 28px, colored to match glow
-* Title: "Zoning" in `text-xs uppercase tracking-wider text-slate-500`
-* Verdict text: 1-2 sentences in `text-sm text-slate-200 font-medium`
-* Expandable details: hidden by default, toggle via "Details" link in `text-xs text-slate-500`
-
-**Metric** (foot traffic, safety, responsiveness):
-* Large number: `text-2xl font-semibold tabular-nums text-slate-50`
-* Label below: `text-xs text-slate-500`
-* Trend indicator: small arrow icon + percentage in green or red `text-xs`
-* Narrative below data: `text-sm text-slate-400 leading-relaxed`
-* Optional sparkline: tiny Recharts `<Line>` (40px tall, no axes, stroke matches glow)
-
-**List** (competition):
-* Compact items: business name in `text-sm text-slate-200`, distance in `text-xs text-slate-500`
-* Max 5 items visible, "and X more" link
-* Each item has a subtle `border-b border-slate-800/50` separator (NOT cards inside cards)
-* Narrative at bottom
-
-**Chart** (foot traffic trend, crime breakdown):
-* Small Recharts chart: max 120px tall
-* Dark theme: `fill="#3b82f6"` bars, `stroke="#3b82f6"` lines, `fill="transparent"` background
-* No grid lines. Minimal axis labels in `text-xs text-slate-600 font-mono`
-* Narrative below
-
-**Timeline** (permit roadmap):
-* Vertical stepper: small circles connected by thin lines
-* Active/completed steps: circle filled with accent color
-* Each step: title in `text-sm text-slate-200`, duration in `text-xs text-slate-500`
-* Total estimate at bottom in `text-sm font-medium text-slate-100`
-* Narrative below
-
-**Narrative** (synthesis):
-* No chrome — just text
-* Slightly wider max-width (360px)
-* `text-sm text-slate-300 leading-relaxed`
-* Subtle left border accent: `border-l-2 border-blue-500/30 pl-4`
-
-**Input** (follow-up questions):
-* Question text: `text-sm text-slate-200 font-medium`
-* Input control styled for dark theme:
-  * Toggle: custom pill toggle, not native checkbox
-  * Select: custom styled dropdown, `bg-slate-800 border-slate-700 text-slate-200`
-  * Slider: custom range with accent color thumb
-* "Skip" link in `text-xs text-slate-500` (questions are never mandatory)
-* On answer: widget transforms to SHOW mode with animated layout transition via `layoutId`
-
-### The Narrative Fade-In Pattern [CRITICAL]
-Every widget follows this animation sequence:
-
-1. **Frame 0:** Widget container materializes via Framer Motion
-   ```tsx
-   initial={{ opacity: 0, scale: 0.92, y: 8 }}
-   animate={{ opacity: 1, scale: 1, y: 0 }}
-   transition={{ type: "spring", stiffness: 200, damping: 25 }}
-   ```
-
-2. **Frame 0:** Structured content (icon, number, chart, list) renders immediately
-
-3. **Frame +1500ms:** Narrative text fades in separately
-   ```tsx
-   <motion.p
-     initial={{ opacity: 0 }}
-     animate={{ opacity: 1 }}
-     transition={{ delay: 1.5, duration: 0.6 }}
-     className="text-sm text-slate-400 leading-relaxed mt-3"
-   >
-     {narrative}
-   </motion.p>
-   ```
-
-4. **Frame +200ms after narrative:** Glow color transitions on (if not neutral)
-   The glow starts as neutral and transitions to the actual color after content is visible.
-
-This sequence makes the LLM latency invisible. The widget looks "complete" at step 2. The narrative in step 3 feels like the AI adding a comment, not the user waiting.
-
-### Loading State
-When a widget is spawned but data hasn't arrived yet:
-* Show a skeleton matching the widget type's layout
-* Use a shimmer animation: `background: linear-gradient(90deg, transparent, rgba(148,163,184,0.04), transparent)` animated left-to-right
-* Skeleton uses `rounded-lg bg-slate-800/50` blocks
-* Avatar is in 'thinking' state nearby
-
-## 6. THE AVATAR
-
-### Visual Design
-* **Shape:** 20x20px circle (small, not dominant)
-* **Fill:** Radial gradient from `rgb(147, 197, 253)` center to `rgba(147, 197, 253, 0.3)` edge
-* **Glow:** `box-shadow: 0 0 12px rgba(147, 197, 253, 0.4), 0 0 24px rgba(147, 197, 253, 0.15)`
-* **Render layer:** Absolutely positioned div OVER the React Flow canvas, synced to viewport transform
-* **NOT a React Flow node** — it moves independently of pan/zoom via manual transform sync
-
-### States & Animation
-* **Idle:** Gentle breathing pulse. Scale oscillates 1.0 → 1.08 → 1.0 over 3 seconds. Use Framer Motion `animate` with `repeat: Infinity, repeatType: "mirror"`.
-* **Thinking:** Faster pulse (1.5s cycle) + subtle opacity flicker (0.7 → 1.0 → 0.7). Glow intensifies.
-* **Moving:** Spring animation to target position. Use `useSpring` with `stiffness: 120, damping: 18`. A faint trail effect: a second, slightly delayed, lower-opacity copy follows 100ms behind.
-
-### Movement Logic
-The avatar moves in response to `BoardAction` items with `type: 'move_avatar'`. The Zustand store updates `avatarPosition`, and the component reacts via spring physics. Movement sequence:
-
-1. Avatar state → 'moving'
-2. Spring-animate to new position
-3. On arrival (spring settles), avatar state → 'thinking' briefly (300ms)
-4. Then → 'idle'
-
-**CRITICAL:** Avatar position is in React Flow coordinate space (not screen pixels). Sync it to the viewport using React Flow's `useViewport()` hook or by applying the same transform matrix as the React Flow container.
-
-## 7. CUSTOM EDGE: InsightEdge
-
-### Visual Design
-* **Stroke:** `rgba(148, 163, 184, 0.15)` — barely visible, not distracting
-* **Stroke width:** 1px
-* **Dash pattern:** `strokeDasharray="6 4"` with a slow CSS animation:
-  ```css
-  @keyframes dash-flow {
-    to { stroke-dashoffset: -20; }
-  }
-  .insight-edge path {
-    animation: dash-flow 2s linear infinite;
-  }
-  ```
-* **Label:** Floating pill at the midpoint of the edge
-  * Background: `bg-slate-800/90 backdrop-blur-sm`
-  * Text: `text-xs text-slate-400`
-  * Border: `border border-slate-700/50`
-  * Padding: `px-2.5 py-1`
-  * Border radius: `rounded-full`
-  * Max width: 200px, text truncates with ellipsis
-  * Framer Motion entrance: fade in + scale from 0.9
-
-### Connection Logic
-Edges are added via `addConnection(sourceId, targetId, label)` in the store. The label is the LLM-generated insight (e.g., "Competitors cluster near the busiest meters"). React Flow renders them using the custom `InsightEdge` type.
-
-## 8. THE ENTRY SCREEN
-
-### Layout (Phase: 'entry')
-Full viewport. Canvas background (grid + vignette) visible but subdued. Center of viewport:
-
-```
-[Vertical stack, centered]
-
-"OpenShop" — text-xs uppercase tracking-[0.3em] text-slate-500 font-medium
-             (wordmark, not logo — clean and understated)
-
-[32px gap]
-
-"What kind of business do you want to open?"
-  → Input: bg-slate-800/60 border border-slate-700/50 rounded-xl
-    text-slate-100 placeholder-slate-600 px-4 py-3 w-full max-w-md
-    focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20
-  → Placeholder rotates: "Coffee shop", "Dog grooming salon",
-    "Tattoo parlor", "Brewery taproom", "Yoga studio"
-    (use a typewriter effect cycling every 3 seconds)
-
-[16px gap]
-
-"Where in San Diego?"
-  → Same input styling
-  → Placeholder: "3025 University Ave" (static — a real address)
-
-[24px gap]
-
-[Let's find out] — Button:
-  bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium
-  px-6 py-3 rounded-xl
-  transition: all 0.2s
-  active:scale-[0.97] (tactile push)
-  No gradient. No glow. Clean solid fill.
-```
-
-### Entry → Board Transition
-When the user clicks the button:
-1. Both inputs + button animate out: `opacity: 0, y: -20, scale: 0.95` over 400ms
-2. After 200ms delay, collapsed input summary cards animate in at top-left of the board:
-   * Two small pills: `bg-slate-800/80 backdrop-blur text-xs text-slate-300 px-3 py-1.5 rounded-lg`
-   * One shows the business type, one shows the address
-   * These are NOT React Flow nodes — they're fixed-position overlays
-3. The avatar fades in at center: `opacity: 0 → 1, scale: 0.5 → 1` with spring physics
-4. Phase transitions to 'identity'
-5. API call fires to `/api/orchestrate`
-
-## 9. MOTION ENGINEERING
-
-### Spring Presets (Use These Everywhere)
-```typescript
-const springs = {
-  snappy: { type: "spring", stiffness: 300, damping: 30 },    // Buttons, small interactions
-  smooth: { type: "spring", stiffness: 200, damping: 25 },    // Widget entrance
-  gentle: { type: "spring", stiffness: 120, damping: 18 },    // Avatar movement
-  slow: { type: "spring", stiffness: 80, damping: 20 },       // Layout transitions
-} as const;
-```
-
-**NO LINEAR EASING.** Every animation uses spring physics. The only exception is the dash-flow CSS keyframe on edges (which must be linear for visual continuity).
-
-### processActions Timing
-The Zustand `processActions` function executes `BoardAction[]` sequentially with staggered delays:
-
-| Action Type | Delay After |
-|------------|------------|
-| `set_phase` | 0ms (immediate) |
-| `move_avatar` | 400ms (wait for spring to settle) |
-| `spawn_widget` | 600ms (time to read + see entrance) |
-| `update_widget` | 300ms |
-| `add_connection` | 250ms |
-| `ask_question` | PAUSE — wait for user response |
-
-These delays create the progressive reveal effect. The board builds over ~15-20 seconds, with new content appearing every 1-2 seconds. The user is always reading something while the next thing is appearing.
-
-### AnimatePresence for Widget Lifecycle
-Wrap the React Flow node renderer in `<AnimatePresence>` so widgets can exit gracefully when the board resets or when the user drags the pin and widgets get replaced:
-
-```tsx
-<AnimatePresence mode="popLayout">
-  {nodes.map(node => (
-    <motion.div
-      key={node.id}
-      layout
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={springs.smooth}
-    >
-      <BoardWidget data={node.data} />
-    </motion.div>
-  ))}
-</AnimatePresence>
-```
-
-## 10. PERFORMANCE GUARDRAILS
-
-* **Hardware Acceleration:** ONLY animate `transform` and `opacity`. Never animate `width`, `height`, `top`, `left`, `box-shadow` (transitions are fine — animations are not).
-* **Glow transitions use CSS `transition`** (GPU-composited for box-shadow), never Framer Motion `animate`.
-* **Avatar isolation:** The avatar component is `React.memo`'d. Its spring animation uses `useMotionValue` + `useSpring` outside the React render cycle. Parent re-renders do NOT cause avatar re-renders.
-* **Chart isolation:** Each Recharts chart inside a widget is wrapped in `React.memo` with a custom comparator checking only the data array reference.
-* **Backdrop-filter limit:** Only the widget surface uses `backdrop-blur`. Never apply it to the canvas, overlays, or edges. One blur layer max.
-* **React Flow viewport culling:** React Flow only renders nodes in the viewport. Do not override this behavior. Trust it.
-* **DOM cost:** The dot grid background is a single CSS `background-image`, not DOM elements. The vignette is a single fixed div. Zero DOM overhead.
-* **Z-Index Budget:**
-  | Layer | Z-Index |
-  |-------|---------|
-  | Canvas (React Flow) | 0 |
-  | Vignette overlay | 5 |
-  | Avatar | 10 |
-  | Collapsed input pills | 15 |
-  | Story mode narration | 20 |
-  | Modals (if any) | 50 |
-
-## 11. ANTI-SLOP RULES (Forbidden Patterns)
-
-### Visual
-* **NO neon outer glows** on buttons, inputs, or cards. Glow is reserved for the status system only.
-* **NO gradient text.** Anywhere. Ever.
-* **NO gradient buttons.** Solid fill only. `bg-blue-500` is the accent. No gradients.
-* **NO purple/violet/magenta** in any context. Palette is cold slate + blue.
-* **NO `#000000`.** Darkest value is `#06060a`.
-* **NO white text on bright backgrounds.** Text is always slate-toned on dark surfaces.
-* **NO generic card grids.** Widgets are positioned in a constellation, not a 3-column layout.
-* **NO rounded-full on widget cards.** Cards are `rounded-2xl` (1rem). Only pills and badges use `rounded-full`.
-
-### Typography
-* **NO text larger than `text-3xl`** anywhere in the app. Entry headline is the max.
-* **NO serif fonts.** This is a data tool, not an editorial site.
-* **NO Inter font.** Use Geist. Fall back to system-ui if Geist unavailable.
-* **NO all-caps headlines.** Only labels and metadata use uppercase.
-
-### Content
-* **NO emoji in any rendered UI.** Use Phosphor icons for all symbolic needs:
-  * Permitted → `CheckCircle` (green)
-  * Warning/CUP → `Warning` (amber)
-  * Not permitted → `XCircle` (red)
-  * Foot traffic → `FootPrints`
-  * Competition → `Storefront`
-  * Safety → `ShieldCheck`
-  * Streets → `Road`
-  * Responsiveness → `Timer`
-  * Permits → `ClipboardText`
-  * Transit → `Bus`
-  * Synthesis → `Sparkle`
-* **NO placeholder images.** Widgets contain data, charts, and text — not images.
-* **NO "Loading..." text.** Use skeleton shimmers matching the widget layout.
-* **NO generic error messages.** Errors are contextual: "Foot traffic data temporarily unavailable" — never "Something went wrong."
-
-### Layout
-* **NO centered layouts after entry screen.** The board is asymmetric by nature.
-* **NO sidebar.** The entire viewport is the canvas.
-* **NO header/navbar.** Only the collapsed input pills at top-left.
-* **NO scroll.** The canvas is pannable/zoomable, not scrollable. React Flow handles this.
-* **NO modals for data display.** Data lives on the board. The expandable "Details" section on verdict widgets is an inline toggle, not a modal.
-
-### Motion
-* **NO linear easing.** Spring physics or nothing.
-* **NO `window.addEventListener('scroll')`.** There is no scroll. It's a canvas.
-* **NO CSS `@keyframes` for widget entrance.** All widget animations use Framer Motion for orchestrated timing. CSS keyframes are ONLY for the edge dash-flow and avatar breathing.
-* **NO auto-playing animations on page load.** The board is blank until the user submits. The entry screen has only the typewriter placeholder effect.
-
-## 12. STORY MODE VISUAL SPEC
-
-### Narration Card
-* **Position:** Fixed, bottom-right of viewport, `z-index: 20`
-* **Size:** `max-w-sm` (384px wide)
-* **Surface:** `bg-slate-900/95 backdrop-blur-xl border border-slate-700/30 rounded-2xl`
-* **Padding:** `p-5`
-* **Text:** `text-sm text-slate-300 leading-relaxed`
-* **Step counter:** `text-xs text-slate-600` at bottom-right of card
-* **Navigation:** Two small icon buttons (ChevronLeft, ChevronRight) in `text-slate-500 hover:text-slate-300`
-* **Auto-advance:** Steps advance on a timer (configurable per step)
-* **Entrance:** Slide up from bottom-right + fade in via Framer Motion
-* **Exit:** Slide down + fade out
-
-### During Story Mode
-* Entry screen is bypassed — the board starts populated
-* Input pills show the case study's address/business type
-* Actions play through `processActions` with the scripted timing
-* The user can exit story mode at any time via an "Exit" button on the narration card
-
-## 13. RESPONSIVE CONSIDERATIONS
-
-OpenShop is primarily a desktop/large-screen tool (the board canvas doesn't work well on mobile). However:
-
-* **Minimum viable width:** 1024px. Below this, show a full-screen message: "OpenShop is designed for larger screens. Please use a desktop browser for the best experience."
-* **Optimal experience:** 1440px+ viewport
-* **The entry screen** should work on tablets (768px+) since it's just two inputs
-* **Touch support:** React Flow handles touch pan/zoom natively. Widgets should be tappable. No hover-only interactions for critical functionality.
-
-## 14. PRE-FLIGHT CHECKLIST
-
-Before outputting any frontend code, verify:
-
-- [ ] Is the background `#06060a` with the dot grid pattern, not plain black or white?
-- [ ] Are ALL widget cards using the dark surface treatment (not white/light)?
-- [ ] Is the glow system implemented via CSS `box-shadow` transitions (not Framer animate)?
-- [ ] Is the avatar isolated in `React.memo` with spring physics outside the render cycle?
-- [ ] Does every widget show the narrative fade-in pattern (content first, text 1.5s later)?
-- [ ] Are Phosphor icons used instead of emoji everywhere?
-- [ ] Is there ZERO purple/violet in the entire output?
-- [ ] Is every Framer Motion animation using spring physics (no linear)?
-- [ ] Are charts in `React.memo` wrappers?
-- [ ] Is `processActions` staggering widget appearance with delays?
-- [ ] Does the entry → board transition animate smoothly?
-- [ ] Is `min-h-[100dvh]` used instead of `h-screen` for the entry state?
-- [ ] Are z-indexes following the budget table (not arbitrary)?
-- [ ] Is the button using `active:scale-[0.97]` for tactile feedback?
-- [ ] Is the `AnimatePresence` wrapping React Flow nodes for exit animations?
+* **NO Inter Font:** Banned. Use `Geist`, `Outfit`, `Cabinet Grotesk`, or `Satoshi`.
+* **NO Oversized H1s:** The first heading should not scream. Control hierarchy with weight and color, not just massive scale.
+* **Serif Constraints:** Use Serif fonts ONLY for creative/editorial designs. **NEVER** use Serif on clean Dashboards.
+
+### Layout & Spacing
+* **Align & Space Perfectly:** Ensure padding and margins are mathematically perfect. Avoid floating elements with awkward gaps.
+* **NO 3-Column Card Layouts:** The generic "3 equal cards horizontally" feature row is BANNED. Use a 2-column Zig-Zag, asymmetric grid, or horizontal scrolling approach instead.
+
+### Content & Data (The "Jane Doe" Effect)
+* **NO Generic Names:** "John Doe", "Sarah Chan", or "Jack Su" are banned. Use highly creative, realistic-sounding names.
+* **NO Generic Avatars:** DO NOT use standard SVG "egg" or Lucide user icons for avatars. Use creative, believable photo placeholders or specific styling.
+* **NO Fake Numbers:** Avoid predictable outputs like `99.99%`, `50%`, or basic phone numbers (`1234567`). Use organic, messy data (`47.2%`, `+1 (312) 847-1928`).
+* **NO Startup Slop Names:** "Acme", "Nexus", "SmartFlow". Invent premium, contextual brand names.
+* **NO Filler Words:** Avoid AI copywriting clichés like "Elevate", "Seamless", "Unleash", or "Next-Gen". Use concrete verbs.
+
+### External Resources & Components
+* **NO Broken Unsplash Links:** Do not use Unsplash. Use absolute, reliable placeholders like `https://picsum.photos/seed/{random_string}/800/600` or SVG UI Avatars.
+* **shadcn/ui Customization:** You may use `shadcn/ui`, but NEVER in its generic default state. You MUST customize the radii, colors, and shadows to match the high-end project aesthetic.
+* **Production-Ready Cleanliness:** Code must be extremely clean, visually striking, memorable, and meticulously refined in every detail.
+
+## 8. THE CREATIVE ARSENAL (High-End Inspiration)
+Do not default to generic UI. Pull from this library of advanced concepts to ensure the output is visually striking and memorable. When appropriate, leverage **GSAP (ScrollTrigger/Parallax)** for complex scrolltelling or **ThreeJS/WebGL** for 3D/Canvas animations, rather than basic CSS motion. **CRITICAL:** Never mix GSAP/ThreeJS with Framer Motion in the same component tree. Default to Framer Motion for UI/Bento interactions. Use GSAP/ThreeJS EXCLUSIVELY for isolated full-page scrolltelling or canvas backgrounds, wrapped in strict useEffect cleanup blocks.
+
+### The Standard Hero Paradigm
+* Stop doing centered text over a dark image. Try asymmetric Hero sections: Text cleanly aligned to the left or right. The background should feature a high-quality, relevant image with a subtle stylistic fade (darkening or lightening gracefully into the background color depending on if it is Light or Dark mode).
+
+### Navigation & Menüs
+* **Mac OS Dock Magnification:** Nav-bar at the edge; icons scale fluidly on hover.
+* **Magnetic Button:** Buttons that physically pull toward the cursor.
+* **Gooey Menu:** Sub-items detach from the main button like a viscous liquid.
+* **Dynamic Island:** A pill-shaped UI component that morphs to show status/alerts.
+* **Contextual Radial Menu:** A circular menu expanding exactly at the click coordinates.
+* **Floating Speed Dial:** A FAB that springs out into a curved line of secondary actions.
+* **Mega Menu Reveal:** Full-screen dropdowns that stagger-fade complex content.
+
+### Layout & Grids
+* **Bento Grid:** Asymmetric, tile-based grouping (e.g., Apple Control Center).
+* **Masonry Layout:** Staggered grid without fixed row heights (e.g., Pinterest).
+* **Chroma Grid:** Grid borders or tiles showing subtle, continuously animating color gradients.
+* **Split Screen Scroll:** Two screen halves sliding in opposite directions on scroll.
+* **Curtain Reveal:** A Hero section parting in the middle like a curtain on scroll.
+
+### Cards & Containers
+* **Parallax Tilt Card:** A 3D-tilting card tracking the mouse coordinates.
+* **Spotlight Border Card:** Card borders that illuminate dynamically under the cursor.
+* **Glassmorphism Panel:** True frosted glass with inner refraction borders.
+* **Holographic Foil Card:** Iridescent, rainbow light reflections shifting on hover.
+* **Tinder Swipe Stack:** A physical stack of cards the user can swipe away.
+* **Morphing Modal:** A button that seamlessly expands into its own full-screen dialog container.
+
+### Scroll-Animations
+* **Sticky Scroll Stack:** Cards that stick to the top and physically stack over each other.
+* **Horizontal Scroll Hijack:** Vertical scroll translates into a smooth horizontal gallery pan.
+* **Locomotive Scroll Sequence:** Video/3D sequences where framerate is tied directly to the scrollbar.
+* **Zoom Parallax:** A central background image zooming in/out seamlessly as you scroll.
+* **Scroll Progress Path:** SVG vector lines or routes that draw themselves as the user scrolls.
+* **Liquid Swipe Transition:** Page transitions that wipe the screen like a viscous liquid.
+
+### Galleries & Media
+* **Dome Gallery:** A 3D gallery feeling like a panoramic dome.
+* **Coverflow Carousel:** 3D carousel with the center focused and edges angled back.
+* **Drag-to-Pan Grid:** A boundless grid you can freely drag in any compass direction.
+* **Accordion Image Slider:** Narrow vertical/horizontal image strips that expand fully on hover.
+* **Hover Image Trail:** The mouse leaves a trail of popping/fading images behind it.
+* **Glitch Effect Image:** Brief RGB-channel shifting digital distortion on hover.
+
+### Typography & Text
+* **Kinetic Marquee:** Endless text bands that reverse direction or speed up on scroll.
+* **Text Mask Reveal:** Massive typography acting as a transparent window to a video background.
+* **Text Scramble Effect:** Matrix-style character decoding on load or hover.
+* **Circular Text Path:** Text curved along a spinning circular path.
+* **Gradient Stroke Animation:** Outlined text with a gradient continuously running along the stroke.
+* **Kinetic Typography Grid:** A grid of letters dodging or rotating away from the cursor.
+
+### Micro-Interactions & Effects
+* **Particle Explosion Button:** CTAs that shatter into particles upon success.
+* **Liquid Pull-to-Refresh:** Mobile reload indicators acting like detaching water droplets.
+* **Skeleton Shimmer:** Shifting light reflections moving across placeholder boxes.
+* **Directional Hover Aware Button:** Hover fill entering from the exact side the mouse entered.
+* **Ripple Click Effect:** Visual waves rippling precisely from the click coordinates.
+* **Animated SVG Line Drawing:** Vectors that draw their own contours in real-time.
+* **Mesh Gradient Background:** Organic, lava-lamp-like animated color blobs.
+* **Lens Blur Depth:** Dynamic focus blurring background UI layers to highlight a foreground action.
+
+## 9. THE "MOTION-ENGINE" BENTO PARADIGM
+When generating modern SaaS dashboards or feature sections, you MUST utilize the following "Bento 2.0" architecture and motion philosophy. This goes beyond static cards and enforces a "Vercel-core meets Dribbble-clean" aesthetic heavily reliant on perpetual physics.
+
+### A. Core Design Philosophy
+* **Aesthetic:** High-end, minimal, and functional.
+* **Palette:** Background in `#f9fafb`. Cards are pure white (`#ffffff`) with a 1px border of `border-slate-200/50`.
+* **Surfaces:** Use `rounded-[2.5rem]` for all major containers. Apply a "diffusion shadow" (a very light, wide-spreading shadow, e.g., `shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]`) to create depth without clutter.
+* **Typography:** Strict `Geist`, `Satoshi`, or `Cabinet Grotesk` font stack. Use subtle tracking (`tracking-tight`) for headers.
+* **Labels:** Titles and descriptions must be placed **outside and below** the cards to maintain a clean, gallery-style presentation.
+* **Pixel-Perfection:** Use generous `p-8` or `p-10` padding inside cards.
+
+### B. The Animation Engine Specs (Perpetual Motion)
+All cards must contain **"Perpetual Micro-Interactions."** Use the following Framer Motion principles:
+* **Spring Physics:** No linear easing. Use `type: "spring", stiffness: 100, damping: 20` for a premium, weighty feel.
+* **Layout Transitions:** Heavily utilize the `layout` and `layoutId` props to ensure smooth re-ordering, resizing, and shared element state transitions.
+* **Infinite Loops:** Every card must have an "Active State" that loops infinitely (Pulse, Typewriter, Float, or Carousel) to ensure the dashboard feels "alive".
+* **Performance:** Wrap dynamic lists in `<AnimatePresence>` and optimize for 60fps. **PERFORMANCE CRITICAL:** Any perpetual motion or infinite loop MUST be memoized (React.memo) and completely isolated in its own microscopic Client Component. Never trigger re-renders in the parent layout.
+
+### C. The 5-Card Archetypes (Micro-Animation Specs)
+Implement these specific micro-animations when constructing Bento grids (e.g., Row 1: 3 cols | Row 2: 2 cols split 70/30):
+1. **The Intelligent List:** A vertical stack of items with an infinite auto-sorting loop. Items swap positions using `layoutId`, simulating an AI prioritizing tasks in real-time.
+2. **The Command Input:** A search/AI bar with a multi-step Typewriter Effect. It cycles through complex prompts, including a blinking cursor and a "processing" state with a shimmering loading gradient.
+3. **The Live Status:** A scheduling interface with "breathing" status indicators. Include a pop-up notification badge that emerges with an "Overshoot" spring effect, stays for 3 seconds, and vanishes.
+4. **The Wide Data Stream:** A horizontal "Infinite Carousel" of data cards or metrics. Ensure the loop is seamless (using `x: ["0%", "-100%"]`) with a speed that feels effortless.
+5. **The Contextual UI (Focus Mode):** A document view that animates a staggered highlight of a text block, followed by a "Float-in" of a floating action toolbar with micro-icons.
+
+## 10. FINAL PRE-FLIGHT CHECK
+Evaluate your code against this matrix before outputting. This is the **last** filter you apply to your logic.
+- [ ] Is global state used appropriately to avoid deep prop-drilling rather than arbitrarily?
+- [ ] Is mobile layout collapse (`w-full`, `px-4`, `max-w-7xl mx-auto`) guaranteed for high-variance designs?
+- [ ] Do full-height sections safely use `min-h-[100dvh]` instead of the bugged `h-screen`?
+- [ ] Do `useEffect` animations contain strict cleanup functions?
+- [ ] Are empty, loading, and error states provided?
+- [ ] Are cards omitted in favor of spacing where possible?
+- [ ] Did you strictly isolate CPU-heavy perpetual animations in their own Client Components?
