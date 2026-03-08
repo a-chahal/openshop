@@ -1,4 +1,6 @@
 # OpenShop SD
+We are aware this is 2 minutes and not 1 minute. Please feel free to watch only the first minute, we do not have time for revisions :(
+https://youtu.be/s7XgIgDTLI0
 
 **AI-powered site assessment for aspiring San Diego business owners.**
 
@@ -114,7 +116,7 @@ Every data source is an isolated tool module (`src/tools/*.ts`), each with its o
 
 **Live Application:** Not yet deployed
 
-**Demo Video:** Coming soon
+**Demo Video:** [Coming soon](https://youtu.be/s7XgIgDTLI0)
 
 ## Running Locally
 
