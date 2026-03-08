@@ -1,5 +1,6 @@
 # OpenShop SD
 We are aware this is 2 minutes and not 1 minute. Please feel free to watch only the first minute, we do not have time for revisions :(
+(or watch it at 2x speed!!! technically a minute ;) )
 https://youtu.be/s7XgIgDTLI0
 
 **AI-powered site assessment for aspiring San Diego business owners.**
