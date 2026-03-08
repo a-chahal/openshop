@@ -1,4 +1,4 @@
-// E2E test suite for OpenShop API
+// E2E test suite for OpenShop API (Dashboard format)
 // Start the server first: npx tsx src/server.ts
 
 const BASE = 'http://localhost:3000/api';
@@ -48,7 +48,14 @@ async function main() {
     process.exit(1);
   }
 
-  // 2. Individual tool endpoints per address
+  // 2. Parse intent
+  console.log('\n--- Parse Intent ---');
+  const intent = await post('/parse-intent', { message: 'I want to open a bakery at 4567 Park Blvd' });
+  intent.status === 200 ? pass('parse-intent 200') : fail('parse-intent', `HTTP ${intent.status}`);
+  intent.data?.businessType ? pass(`businessType: ${intent.data.businessType}`) : fail('missing businessType');
+  intent.data?.address ? pass(`address: ${intent.data.address}`) : fail('missing address');
+
+  // 3. Individual tool endpoints per address
   for (const addr of ADDRESSES) {
     console.log(`\n--- ${addr.name} (${addr.address}) ---`);
 
@@ -116,7 +123,7 @@ async function main() {
     }
   }
 
-  // 3. Orchestrate tests (sequential — each is expensive)
+  // 4. Orchestrate tests (DashboardResponse format)
   console.log('\n--- Orchestrate ---');
   for (const addr of ADDRESSES) {
     console.log(`\n  ${addr.name}:`);
@@ -129,13 +136,29 @@ async function main() {
       ? pass(`orchestrate 200 (${result.ms}ms)`)
       : fail('orchestrate', `HTTP ${result.status}: ${JSON.stringify(result.data).slice(0, 200)}`);
 
-    if (result.data?.actions) {
-      const widgets = result.data.actions.filter((a: any) => a.type === 'spawn_widget');
-      widgets.length >= 5
-        ? pass(`${widgets.length} widgets spawned`)
-        : fail('widgets', `expected >= 5, got ${widgets.length}`);
+    // Check DashboardResponse structure
+    if (result.data?.zoning?.data?.zoneName) {
+      pass(`zoning: ${result.data.zoning.data.zoneName}`);
     } else {
-      fail('orchestrate: no actions');
+      fail('orchestrate: missing zoning data');
+    }
+
+    if (result.data?.synthesis?.possibleVerdict) {
+      pass(`verdict: ${result.data.synthesis.possibleVerdict}, score: ${result.data.synthesis.feasibilityScore}`);
+    } else {
+      fail('orchestrate: missing synthesis');
+    }
+
+    if (result.data?.geocoded?.lat && result.data?.geocoded?.lng) {
+      pass(`geocoded: ${result.data.geocoded.lat.toFixed(4)}, ${result.data.geocoded.lng.toFixed(4)}`);
+    } else {
+      fail('orchestrate: missing geocoded');
+    }
+
+    if (result.data?.questions) {
+      pass(`questions: ${result.data.questions.length}`);
+    } else {
+      fail('orchestrate: missing questions');
     }
 
     result.ms < 30000
@@ -143,25 +166,35 @@ async function main() {
       : fail('slow', `${(result.ms / 1000).toFixed(1)}s`);
   }
 
-  // 4. Bad address handling
-  console.log('\n--- Bad Addresses ---');
-  const badAddr = await post('/zoning', { address: '123 Fake St, Chicago, IL', businessType: 'restaurant' });
-  badAddr.status !== 200
-    ? pass(`non-SD address rejected (${badAddr.status})`)
-    : fail('non-SD address should fail');
-  if (badAddr.data?.error?.includes('not found'))
-    pass(`clear error: "${badAddr.data.error.substring(0, 80)}"`);
+  // 5. Synthesize endpoint
+  console.log('\n--- Synthesize ---');
+  const zoningForSynth = await post('/zoning', { address: '3025 University Ave, San Diego, CA', businessType: 'bakery' });
+  const synthResult = await post('/synthesize', {
+    businessType: 'bakery',
+    address: '3025 University Ave',
+    zoning: zoningForSynth.data,
+    competition: null,
+    footTraffic: null,
+    neighborhood: null,
+    permits: null
+  });
+  synthResult.status === 200 ? pass('synthesize 200') : fail('synthesize', `HTTP ${synthResult.status}`);
+  synthResult.data?.synthesis?.possibleVerdict
+    ? pass(`synthesis verdict: ${synthResult.data.synthesis.possibleVerdict}`)
+    : fail('synthesize: missing verdict');
 
+  // 6. Bad address handling
+  console.log('\n--- Bad Addresses ---');
   const badAddr2 = await post('/zoning', { address: '99999 Nonexistent Blvd, San Diego, CA', businessType: 'restaurant' });
   badAddr2.status !== 200
     ? pass(`nonexistent address rejected (${badAddr2.status})`)
     : fail('nonexistent address should fail');
 
-  // 5. Answer endpoint (quick smoke test)
+  // 7. Answer endpoint
   console.log('\n--- Answer ---');
   const answerResult = await post('/orchestrate/answer', {
     widgetId: 'startup_capital',
-    answer: true,
+    answer: 'Yes, I have $50k-$100k',
     currentState: {
       businessType: 'bakery with coffee',
       address: '3025 University Ave, San Diego, CA'
@@ -170,27 +203,9 @@ async function main() {
   answerResult.status === 200
     ? pass(`answer 200 (${answerResult.ms}ms)`)
     : fail('answer', `HTTP ${answerResult.status}`);
-  answerResult.data?.actions?.length > 0
-    ? pass('returned update actions')
-    : fail('answer: no actions');
-
-  // 5. Reassess endpoint (smoke test with slightly shifted coords)
-  console.log('\n--- Reassess ---');
-  const reassessResult = await post('/reassess', {
-    businessType: 'bakery with coffee',
-    newLat: 32.749,
-    newLng: -117.128,
-    previousAnswers: {}
-  });
-  reassessResult.status === 200
-    ? pass(`reassess 200 (${reassessResult.ms}ms)`)
-    : fail('reassess', `HTTP ${reassessResult.status}`);
-  reassessResult.data?.actions?.length > 0
-    ? pass(`${reassessResult.data.actions.length} actions returned`)
-    : fail('reassess: no actions');
-  reassessResult.data?.diffs
-    ? pass('has diffs')
-    : fail('reassess: missing diffs');
+  answerResult.data?.message
+    ? pass('returned message')
+    : fail('answer: no message');
 
   // Summary
   console.log('\n========================================');

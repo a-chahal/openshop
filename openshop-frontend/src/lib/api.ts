@@ -64,10 +64,30 @@ export async function synthesize(
   return apiFetch('/api/synthesize', { businessType, address, zoning, competition, footTraffic, neighborhood, permits })
 }
 
+export interface ToolSummary {
+  zoneName: string
+  verdict: string
+  competitorCount: number
+  survivalRate: number | null
+  trafficPct: number | null
+  medianPermitDays: number | null
+  violentCrimeRate: number | null
+}
+
 export async function submitAnswer(
-  widgetId: string,
+  questionId: string,
   answer: string,
-  currentState: { businessType: string; address: string }
-): Promise<{ message: string }> {
-  return apiFetch('/api/orchestrate/answer', { widgetId, answer, currentState })
+  currentState: { businessType: string; address: string },
+  currentSynthesis?: StructuredSynthesis,
+  allAnswers?: Record<string, string>,
+  toolSummary?: ToolSummary,
+): Promise<{ message: string; synthesis?: StructuredSynthesis }> {
+  return apiFetch('/api/orchestrate/answer', {
+    questionId,
+    answer,
+    currentState,
+    currentSynthesis,
+    allAnswers,
+    toolSummary,
+  })
 }

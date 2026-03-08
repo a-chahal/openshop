@@ -3,7 +3,7 @@ import { createTrace } from '../telemetry/trace.js';
 import type { TraceContext } from '../telemetry/trace.js';
 import { geocode, getCommunityPlan } from '../data/arcgis.js';
 import { mapBusinessType } from '../llm/business-mapper.js';
-import { orchestrate, parseIntent, generateStructuredSynthesis, selectFollowUpQuestions } from '../llm/orchestrator.js';
+import { orchestrate, parseIntent, generateStructuredSynthesis, getRefinementQuestions, refineSynthesis } from '../llm/orchestrator.js';
 import { checkZoning } from '../tools/checkZoning.js';
 import { competitiveLandscape } from '../tools/competitiveLandscape.js';
 import { footTraffic } from '../tools/footTraffic.js';
@@ -55,23 +55,30 @@ router.post('/orchestrate', async (req, res, next) => {
   }
 });
 
-// POST /api/orchestrate/answer — follow-up question answer
+// POST /api/orchestrate/answer — follow-up question answer that refines the synthesis
 router.post('/orchestrate/answer', async (req, res, next) => {
   try {
-    const { widgetId, answer, currentState } = req.body;
-    if (!widgetId || answer === undefined || !currentState) {
-      res.status(400).json({ error: 'widgetId, answer, and currentState are required' });
+    const { questionId, answer, currentState, currentSynthesis, allAnswers, toolSummary } = req.body;
+    if (!questionId || answer === undefined || !currentState) {
+      res.status(400).json({ error: 'questionId, answer, and currentState are required' });
       return;
     }
     const { businessType, address } = currentState;
     const ctx = createTrace(address, businessType);
 
-    const response = await llm(ctx, 'answerUpdate', {
-      systemPrompt: 'You update business location assessment notes based on new user input. Write 1-3 sentences in plain conversational English.',
-      prompt: `The user was asked "${widgetId}" and answered: ${JSON.stringify(answer)}.\nBusiness: ${businessType}\nLocation: ${address}\n\nWrite a brief updated assessment note incorporating this answer.`
-    });
-
-    res.json({ message: response });
+    // If we have synthesis + tool data, do a real refinement
+    if (currentSynthesis && toolSummary) {
+      const updatedAnswers = { ...(allAnswers ?? {}), [questionId]: answer };
+      const result = await refineSynthesis(ctx, businessType, address, currentSynthesis, updatedAnswers, toolSummary);
+      res.json({ message: result.message, synthesis: result.synthesis });
+    } else {
+      // Fallback: just generate a message (no widget updates)
+      const response = await llm(ctx, 'answerUpdate', {
+        systemPrompt: 'You update business location assessment notes based on new user input. Write 1-3 sentences in plain conversational English.',
+        prompt: `The user was asked "${questionId}" and answered: ${JSON.stringify(answer)}.\nBusiness: ${businessType}\nLocation: ${address}\n\nWrite a brief updated assessment note incorporating this answer.`
+      });
+      res.json({ message: response });
+    }
   } catch (err) {
     next(err);
   }
@@ -86,13 +93,11 @@ router.post('/synthesize', async (req, res, next) => {
       return;
     }
     const ctx = createTrace(address, businessType);
-    const [synthesis, followUps] = await Promise.all([
-      generateStructuredSynthesis(ctx, businessType, address, {
-        zoning, competition, traffic: footTraffic, hood: neighborhood, permits
-      }),
-      selectFollowUpQuestions(ctx, businessType, zoning, competition, footTraffic, address)
-    ]);
-    res.json({ synthesis, questions: followUps });
+    const synthesis = await generateStructuredSynthesis(ctx, businessType, address, {
+      zoning, competition, traffic: footTraffic, hood: neighborhood, permits
+    });
+    const questions = getRefinementQuestions();
+    res.json({ synthesis, questions });
   } catch (err) {
     next(err);
   }

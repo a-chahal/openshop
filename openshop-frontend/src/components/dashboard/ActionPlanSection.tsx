@@ -4,8 +4,8 @@ import { SectionColumn } from './SectionColumn'
 import { DataCard } from './DataCard'
 import { MetricDisplay } from './MetricDisplay'
 import { WidgetSkeleton } from './WidgetSkeleton'
-import { submitAnswer } from '../../lib/api'
-import { useCallback, useState } from 'react'
+import { submitAnswer, type ToolSummary } from '../../lib/api'
+import { useCallback, useState, useRef } from 'react'
 
 const priorityBadge = {
   required: { label: 'Required', className: 'bg-rose-500/15 text-rose-400 border-rose-500/20' },
@@ -18,26 +18,59 @@ export function ActionPlanSection() {
   const synthesis = useDashboardStore(s => s.synthesis)
   const questions = useDashboardStore(s => s.questions)
   const addChatMessage = useDashboardStore(s => s.addChatMessage)
+  const setSynthesis = useDashboardStore(s => s.setSynthesis)
   const businessType = useDashboardStore(s => s.businessType)
   const address = useDashboardStore(s => s.address)
+  const zoning = useDashboardStore(s => s.zoning)
+  const competition = useDashboardStore(s => s.competition)
+  const footTraffic = useDashboardStore(s => s.footTraffic)
+  const neighborhood = useDashboardStore(s => s.neighborhood)
 
   const [answeredIds, setAnsweredIds] = useState<Set<string>>(new Set())
   const [answeringId, setAnsweringId] = useState<string | null>(null)
+  const allAnswersRef = useRef<Record<string, string>>({})
 
   const handleOptionClick = useCallback(async (questionId: string, option: string) => {
     setAnsweringId(questionId)
     addChatMessage('user', option)
 
+    // Track all answers
+    allAnswersRef.current = { ...allAnswersRef.current, [questionId]: option }
+
+    // Build tool summary from store data
+    const toolSummary: ToolSummary = {
+      zoneName: zoning?.data.zoneName ?? '',
+      verdict: zoning?.data.verdict ?? '',
+      competitorCount: competition?.data.count ?? 0,
+      survivalRate: competition?.data.survivalRate ?? null,
+      trafficPct: footTraffic?.data.pctOfCitywideAvg ?? null,
+      medianPermitDays: permits?.data.medianDays ?? null,
+      violentCrimeRate: neighborhood?.data.violentCrimeRate ?? null,
+    }
+
     try {
-      const result = await submitAnswer(questionId, option, { businessType, address })
+      const currentSynthesis = useDashboardStore.getState().synthesis
+      const result = await submitAnswer(
+        questionId,
+        option,
+        { businessType, address },
+        currentSynthesis ?? undefined,
+        allAnswersRef.current,
+        toolSummary,
+      )
       addChatMessage('system', result.message)
       setAnsweredIds(prev => new Set(prev).add(questionId))
+
+      // Apply updated synthesis to the store
+      if (result.synthesis) {
+        setSynthesis(result.synthesis, questions)
+      }
     } catch (err: any) {
       addChatMessage('system', `Error: ${err.message}`)
     } finally {
       setAnsweringId(null)
     }
-  }, [businessType, address, addChatMessage])
+  }, [businessType, address, addChatMessage, setSynthesis, questions, zoning, competition, footTraffic, permits, neighborhood])
 
   const unansweredQuestions = questions.filter(q => !answeredIds.has(q.id))
   const currentQuestion = unansweredQuestions[0]

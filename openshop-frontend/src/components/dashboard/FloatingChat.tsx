@@ -11,6 +11,7 @@ import {
   fetchNeighborhood,
   synthesize,
   submitAnswer,
+  type ToolSummary,
 } from '../../lib/api'
 
 export function FloatingChat() {
@@ -18,6 +19,7 @@ export function FloatingChat() {
   const [minimized, setMinimized] = useState(false)
   const [questionIndex, setQuestionIndex] = useState(0)
   const hasAskedRef = useRef(false)
+  const allAnswersRef = useRef<Record<string, string>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -39,6 +41,11 @@ export function FloatingChat() {
   const address = useDashboardStore(s => s.address)
   const synthesis = useDashboardStore(s => s.synthesis)
   const questions = useDashboardStore(s => s.questions)
+  const zoning = useDashboardStore(s => s.zoning)
+  const competition = useDashboardStore(s => s.competition)
+  const footTraffic = useDashboardStore(s => s.footTraffic)
+  const neighborhood = useDashboardStore(s => s.neighborhood)
+  const permits = useDashboardStore(s => s.permits)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -187,10 +194,34 @@ export function FloatingChat() {
         : null
       const questionId = currentQ?.id ?? 'chat'
 
+      // Track answer
+      allAnswersRef.current = { ...allAnswersRef.current, [questionId]: text }
+
+      // Build tool summary from store
+      const toolSummary: ToolSummary = {
+        zoneName: zoning?.data.zoneName ?? '',
+        verdict: zoning?.data.verdict ?? '',
+        competitorCount: competition?.data.count ?? 0,
+        survivalRate: competition?.data.survivalRate ?? null,
+        trafficPct: footTraffic?.data.pctOfCitywideAvg ?? null,
+        medianPermitDays: permits?.data.medianDays ?? null,
+        violentCrimeRate: neighborhood?.data.violentCrimeRate ?? null,
+      }
+
       setLoading(true)
       try {
-        const result = await submitAnswer(questionId, text, { businessType, address })
+        const currentSynthesis = useDashboardStore.getState().synthesis
+        const result = await submitAnswer(
+          questionId, text, { businessType, address },
+          currentSynthesis ?? undefined,
+          allAnswersRef.current,
+          toolSummary,
+        )
         addChatMessage('system', result.message)
+        // Apply updated synthesis
+        if (result.synthesis) {
+          setSynthesis(result.synthesis, questions)
+        }
         askNextQuestion()
       } catch (err: any) {
         addChatMessage('system', `Error: ${err.message}`)
@@ -198,7 +229,7 @@ export function FloatingChat() {
         setLoading(false)
       }
     }
-  }, [input, isLoading, hasSubmitted, synthesis, businessType, address, questionIndex, questions, addChatMessage, setLoading, setError, setEntry, setHasSubmitted, runProgressiveAnalysis, askNextQuestion])
+  }, [input, isLoading, hasSubmitted, synthesis, businessType, address, questionIndex, questions, addChatMessage, setLoading, setError, setEntry, setHasSubmitted, setSynthesis, runProgressiveAnalysis, askNextQuestion, zoning, competition, footTraffic, neighborhood, permits])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -334,6 +365,7 @@ export function FloatingChat() {
                   onClick={() => {
                     useDashboardStore.getState().reset()
                     hasAskedRef.current = false
+                    allAnswersRef.current = {}
                     setQuestionIndex(0)
                     setMinimized(false)
                   }}

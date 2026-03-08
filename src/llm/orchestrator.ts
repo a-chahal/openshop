@@ -38,13 +38,11 @@ export async function orchestrate(businessType: string, address: string): Promis
   const hood = results[2].status === 'fulfilled' ? results[2].value : null;
   const permits = results[3].status === 'fulfilled' ? results[3].value : null;
 
-  // Phase 4: Structured synthesis + follow-up questions (parallel)
-  const [synthesis, followUps] = await Promise.all([
-    generateStructuredSynthesis(ctx, businessType, address, {
-      zoning: zoningResult, competition, traffic, hood, permits
-    }),
-    selectFollowUpQuestions(ctx, businessType, zoningResult, competition, traffic, address)
-  ]);
+  // Phase 4: Structured synthesis + hardcoded refinement questions
+  const synthesis = await generateStructuredSynthesis(ctx, businessType, address, {
+    zoning: zoningResult, competition, traffic, hood, permits
+  });
+  const followUps = getRefinementQuestions();
 
   const totalDuration = Date.now() - ctx.startTime;
   console.log(`\nOrchestration complete in ${totalDuration}ms\n`);
@@ -135,43 +133,142 @@ Return ONLY valid JSON.`,
   }
 }
 
-export async function selectFollowUpQuestions(
+// Hardcoded refinement questions — each answer directly adjusts the synthesis
+export const REFINEMENT_QUESTIONS: FollowUpQuestion[] = [
+  {
+    id: 'alcohol',
+    question: 'Will your business serve or sell alcohol?',
+    inputType: 'select',
+    options: ['No alcohol', 'Beer & wine only', 'Full bar / spirits'],
+  },
+  {
+    id: 'budget',
+    question: "What's your estimated startup budget?",
+    inputType: 'select',
+    options: ['Under $50k', '$50k – $150k', '$150k – $500k', 'Over $500k'],
+  },
+  {
+    id: 'hours',
+    question: 'What will your primary hours of operation be?',
+    inputType: 'select',
+    options: ['Morning (6am–2pm)', 'Daytime (8am–6pm)', 'Evening & night (4pm–12am)', 'Extended hours (6am–12am)'],
+  },
+];
+
+export function getRefinementQuestions(): FollowUpQuestion[] {
+  return REFINEMENT_QUESTIONS;
+}
+
+// Regenerate synthesis incorporating user answers
+export async function refineSynthesis(
   ctx: TraceContext,
   businessType: string,
-  zoning: ToolResult<ZoningData>,
-  competition: ToolResult<CompetitionData> | null,
-  traffic: ToolResult<FootTrafficData> | null,
-  address?: string
-): Promise<FollowUpQuestion[]> {
-  try {
-    const result = await llmJSON<{ questions: FollowUpQuestion[] }>(ctx, 'followUpQuestions', `
-Given this business analysis, generate 3-5 follow-up questions that help refine and personalize the recommendation for this specific business.
+  address: string,
+  currentSynthesis: StructuredSynthesis,
+  allAnswers: Record<string, string>,
+  toolSummary: {
+    zoneName: string;
+    verdict: string;
+    competitorCount: number;
+    survivalRate: number | null;
+    trafficPct: number | null;
+    medianPermitDays: number | null;
+    violentCrimeRate: number | null;
+  }
+): Promise<{ message: string; synthesis: StructuredSynthesis }> {
+  const answersText = Object.entries(allAnswers)
+    .map(([id, answer]) => {
+      const q = REFINEMENT_QUESTIONS.find(q => q.id === id);
+      return `Q: ${q?.question ?? id}\nA: ${answer}`;
+    })
+    .join('\n\n');
+
+  const synthesis = await llmJSON<StructuredSynthesis>(ctx, 'refineSynthesis', `
+You are refining a business location assessment based on new information from the owner.
 
 Business: ${businessType}
 Address: ${address}
-Zoning verdict: ${zoning.data.verdict}
-Use category: ${zoning.data.useCategory}
-Competitors found: ${competition?.data.count ?? 'N/A'}
-Foot traffic vs citywide: ${traffic?.data.pctOfCitywideAvg ?? 'N/A'}%
-Survival rate: ${competition?.data.survivalRate ?? 'N/A'}%
+
+Location data summary:
+- Zone: ${toolSummary.zoneName} — ${toolSummary.verdict}
+- Competitors nearby: ${toolSummary.competitorCount}
+- Business survival rate: ${toolSummary.survivalRate !== null ? toolSummary.survivalRate + '%' : 'N/A'}
+- Foot traffic vs citywide: ${toolSummary.trafficPct !== null ? toolSummary.trafficPct + '%' : 'N/A'}
+- Median permit days: ${toolSummary.medianPermitDays ?? 'N/A'}
+- Violent crime rate: ${toolSummary.violentCrimeRate !== null ? toolSummary.violentCrimeRate + '%' : 'N/A'}
+
+Previous assessment:
+${JSON.stringify(currentSynthesis)}
+
+New information from the business owner:
+${answersText}
+
+IMPORTANT — How answers affect the assessment:
+
+ALCOHOL:
+- "No alcohol" → no change to zoning, no liquor license step needed
+- "Beer & wine only" → may need a Type 41 ABC license (~$500, 60-90 days), check if zone allows
+- "Full bar / spirits" → likely needs Conditional Use Permit if zone says "permitted" for food, add CUP step (90-180 days), Type 47/48 ABC license, raises permit timeline significantly, could change verdict from "yes" to "conditional"
+
+BUDGET:
+- "Under $50k" → tight budget limits build-out, may need to find turnkey space, affects feasibility score negatively if area has high competition / high rent expectations, add "seek SBA microloan" to next steps
+- "$50k – $150k" → moderate budget, reasonable for most small food/retail, neutral
+- "$150k – $500k" → comfortable budget, can afford build-out and first-year runway, positive signal
+- "Over $500k" → strong position, can handle delays/permits/build-out, positive factor
+
+HOURS:
+- "Morning (6am–2pm)" → parking meter data less relevant (meters often start 8am), reduces safety concern (daytime only), less competition overlap with evening restaurants
+- "Daytime (8am–6pm)" → standard hours, foot traffic data directly applicable
+- "Evening & night (4pm–12am)" → safety data becomes more important, parking meters less relevant, may need additional security considerations, check if zone has noise/hours restrictions
+- "Extended hours (6am–12am)" → maximizes foot traffic capture, but raises operational costs, safety at night relevant
+
+Regenerate the FULL assessment JSON with these adjustments. Change specific numbers — adjust feasibilityScore up or down by 5-15 points based on answers, add/remove/modify factors, add specific next steps for alcohol licensing or budget constraints, adjust verdict if alcohol changes zoning status.
+
+Return JSON matching this exact schema:
+{
+  "possibleVerdict": "yes" | "conditional" | "no",
+  "possibleSummary": "One sentence — mention alcohol/budget/hours impact if relevant",
+  "feasibilityScore": 0-100,
+  "feasibilityFactors": [
+    { "factor": "Competition", "signal": "positive" | "neutral" | "negative", "detail": "..." },
+    { "factor": "Foot Traffic", "signal": "...", "detail": "..." },
+    { "factor": "Safety", "signal": "...", "detail": "..." },
+    { "factor": "Infrastructure", "signal": "...", "detail": "..." },
+    { "factor": "Budget Fit", "signal": "...", "detail": "..." }
+  ],
+  "nextSteps": [
+    { "step": "Action item", "priority": "required" | "recommended" | "optional", "estimatedDays": number_or_null }
+  ],
+  "openQuestions": [],
+  "overallGlowColor": "green" | "amber" | "red"
+}
 
 Rules:
-- Ask about the BUSINESS, not the location data (budget, experience, timeline, concept, target market)
-- Each question should unlock a concrete recommendation when answered
-- Mix question types: some with preset options, some open-ended
-- Ask about things that differentiate this business from competitors
-- Never ask about city bureaucracy (NAICS, zones, APNs)
-- Good examples: budget range, opening timeline, prior experience, dine-in vs takeout, target demographic, hours of operation, whether they need a liquor license
-- Questions should feel like a conversation with a knowledgeable advisor
+- feasibilityScore MUST differ from the previous score based on the answers
+- Include a "Budget Fit" factor that reflects whether their budget matches the area
+- If alcohol is selected, add ABC license and/or CUP to nextSteps with realistic timelines
+- If hours are evening/night, weight safety factor more heavily
+- overallGlowColor: "green" if score >= 70, "amber" if 40-69, "red" if < 40
+- Be specific with numbers, plain English, no jargon
 
-Return JSON: { "questions": [{ "id": "string", "question": "string",
-"inputType": "select|text|toggle", "options": ["a","b","c"] or null }] }
 Return ONLY valid JSON.`,
-      'You select relevant follow-up questions. Return only valid JSON.');
-    return result.questions ?? [];
-  } catch {
-    return [];
-  }
+    'You refine business location assessments based on owner input. Return only valid JSON.');
+
+  // Generate a conversational message about what changed
+  const scoreDelta = synthesis.feasibilityScore - currentSynthesis.feasibilityScore;
+  const direction = scoreDelta > 0 ? 'up' : scoreDelta < 0 ? 'down' : 'unchanged';
+  const deltaStr = scoreDelta !== 0 ? ` (${scoreDelta > 0 ? '+' : ''}${scoreDelta} points)` : '';
+
+  const message = await llm(ctx, 'refineMessage', {
+    systemPrompt: 'Write 1-2 conversational sentences explaining how the user\'s answer changed their assessment. Be specific about what shifted. Keep it brief and helpful.',
+    prompt: `Business: ${businessType} at ${address}
+Answers given: ${answersText}
+Score went ${direction}${deltaStr}: ${currentSynthesis.feasibilityScore} → ${synthesis.feasibilityScore}
+Verdict: ${currentSynthesis.possibleVerdict} → ${synthesis.possibleVerdict}
+Write a brief note about the impact.`
+  });
+
+  return { message, synthesis };
 }
 
 export async function parseIntent(message: string): Promise<{ businessType: string; address: string }> {
