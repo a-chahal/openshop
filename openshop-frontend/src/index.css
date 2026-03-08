@@ -58,42 +58,22 @@ html, body, #root {
     0 0 20px rgba(248, 113, 113, 0.12),
     0 0 40px rgba(248, 113, 113, 0.04);
 }
-.glow-neutral {
-  box-shadow:
-    0 0 0 1px rgba(148, 163, 184, 0.06),
-    0 0 10px rgba(148, 163, 184, 0.04);
-}
 
-/* Edge animation */
-@keyframes dash-flow {
-  to { stroke-dashoffset: -20; }
-}
-.insight-edge path {
-  animation: dash-flow 2s linear infinite;
-}
-
-/* React Flow overrides */
-.react-flow__attribution { display: none; }
-.react-flow__background { opacity: 0; }
-
-/* Dot grid background for canvas */
-.board-canvas {
-  background-color: #06060a;
-  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-/* Scrollbar styling */
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.15);
+  background: rgba(148, 163, 184, 0.12);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
 }

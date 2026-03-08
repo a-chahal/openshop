@@ -52,6 +52,7 @@ export function lookupZonePrefix(zoneName: string): ZoneVerdict {
   if (upper.startsWith('LHPD')) return { category: 'commercial', verdict: 'La Jolla Shores Planned District — commercial uses with conditions' };
   if (upper.startsWith('MCCPD')) return { category: 'commercial', verdict: 'Mission Center Planned District — regional commercial' };
   if (upper.startsWith('PVPD')) return { category: 'mixed', verdict: 'Planned Village District — mixed-use, commercial generally permitted' };
+  if (upper.startsWith('GQPD') || upper.includes('GASLAMP')) return { category: 'commercial', verdict: 'Gaslamp Quarter Planned District — retail, restaurants, and entertainment permitted with conditions' };
 
   const prefixMap: Record<string, ZoneVerdict> = {
     'CN': { category: 'commercial', verdict: 'Commercial Neighborhood — most retail/service businesses permitted' },

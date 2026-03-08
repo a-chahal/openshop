@@ -1,54 +1,14 @@
-// Mirrors backend types for the frontend
+// Mirrors backend types for the dashboard frontend
 
-export interface BoardAction {
-  type: 'spawn_widget' | 'update_widget' | 'add_connection' |
-        'move_avatar' | 'ask_question' | 'set_phase'
-  widgetId?: string
-  widgetType?: WidgetType
-  position?: { x: number; y: number }
-  data?: any
-  narrative?: string
-  glowColor?: GlowColor
-  sourceId?: string
-  targetId?: string
-  label?: string
-  question?: string
-  inputType?: InputType
-  options?: string[]
-  targetPosition?: { x: number; y: number }
-}
-
-export type WidgetType = 'verdict' | 'metric' | 'list' | 'chart' | 'timeline' | 'narrative' | 'input'
 export type GlowColor = 'green' | 'amber' | 'red' | 'neutral'
-export type InputType = 'text' | 'select' | 'toggle' | 'slider' | 'time_range'
-export type Phase = 'entry' | 'identity' | 'feasibility' | 'nuance' | 'permits' | 'synthesis' | 'action'
 
-export interface BoardWidgetData {
-  [key: string]: unknown
-  widgetId: string
-  widgetType: WidgetType
-  glowColor: GlowColor
-  data: any
+export interface ToolResult<T> {
+  data: T
   narrative: string
-  question?: string
-  inputType?: InputType
-  options?: string[]
+  glowColor: GlowColor
 }
 
-export interface OrchestrateResponse {
-  actions: BoardAction[]
-  geocoded: { lat: number; lng: number }
-  communityPlan: string
-  zoneName: string
-  traceId: string
-}
-
-export interface ReassessResponse {
-  actions: BoardAction[]
-  diffs: Record<string, 'better' | 'worse' | 'same'>
-}
-
-// Widget data shapes (mirrored from backend)
+// --- Data shapes ---
 
 export interface GeocodedLocation {
   lat: number
@@ -145,4 +105,60 @@ export interface NeighborhoodData {
   avgCaseAgeDays: number | null
   top311Services: ServiceRequest311[]
   streetQuality: StreetQuality
+}
+
+// --- Synthesis ---
+
+export interface FeasibilityFactor {
+  factor: string
+  signal: 'positive' | 'neutral' | 'negative'
+  detail: string
+}
+
+export interface NextStep {
+  step: string
+  priority: 'required' | 'recommended' | 'optional'
+  estimatedDays?: number
+}
+
+export interface StructuredSynthesis {
+  possibleVerdict: 'yes' | 'conditional' | 'no'
+  possibleSummary: string
+  feasibilityScore: number
+  feasibilityFactors: FeasibilityFactor[]
+  nextSteps: NextStep[]
+  openQuestions: string[]
+  overallGlowColor: GlowColor
+}
+
+export interface FollowUpQuestion {
+  id: string
+  question: string
+  inputType: string
+  options?: string[]
+}
+
+// --- API response ---
+
+export interface DashboardResponse {
+  geocoded: { lat: number; lng: number }
+  communityPlan: string
+  zoneName: string
+  zoning: ToolResult<ZoningData>
+  competition: ToolResult<CompetitionData> | null
+  footTraffic: ToolResult<FootTrafficData> | null
+  neighborhood: ToolResult<NeighborhoodData> | null
+  permits: ToolResult<PermitData>
+  synthesis: StructuredSynthesis
+  questions: FollowUpQuestion[]
+  traceId: string
+}
+
+// --- Chat ---
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'system'
+  content: string
+  timestamp: number
 }

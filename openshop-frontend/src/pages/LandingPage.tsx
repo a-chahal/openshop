@@ -16,7 +16,7 @@ const reveal = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: 'spring', stiffness: 100, damping: 20 },
+    transition: { type: 'spring' as const, stiffness: 100, damping: 20 },
   },
 }
 
@@ -28,7 +28,7 @@ const stagger = (delay = 0.08) => ({
 const buttonSpring = {
   whileHover: { scale: 1.03 },
   whileTap: { scale: 0.97 },
-  transition: { type: 'spring', stiffness: 400, damping: 17 },
+  transition: { type: 'spring' as const, stiffness: 400, damping: 17 },
 }
 
 /* ------------------------------------------------------------------ */
@@ -103,7 +103,7 @@ const previewCards = [
 export function LandingPage() {
   const navigate = useNavigate()
 
-  const goToBoard = () => navigate('/board')
+  const goToBoard = () => navigate('/dashboard')
 
   return (
     <div className="min-h-[100dvh] bg-[#06060a] text-slate-50 selection:bg-blue-500/30">

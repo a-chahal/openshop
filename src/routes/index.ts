@@ -1,10 +1,9 @@
 import { Router } from 'express';
 import { createTrace } from '../telemetry/trace.js';
 import type { TraceContext } from '../telemetry/trace.js';
-import type { BoardAction } from '../types/index.js';
 import { geocode, getCommunityPlan } from '../data/arcgis.js';
 import { mapBusinessType } from '../llm/business-mapper.js';
-import { orchestrate } from '../llm/orchestrator.js';
+import { orchestrate, parseIntent, generateStructuredSynthesis, selectFollowUpQuestions } from '../llm/orchestrator.js';
 import { checkZoning } from '../tools/checkZoning.js';
 import { competitiveLandscape } from '../tools/competitiveLandscape.js';
 import { footTraffic } from '../tools/footTraffic.js';
@@ -26,7 +25,22 @@ router.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// POST /api/orchestrate — main entry point
+// POST /api/parse-intent — extract business type + address from natural language
+router.post('/parse-intent', async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    if (!message) {
+      res.status(400).json({ error: 'message is required' });
+      return;
+    }
+    const result = await parseIntent(message);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/orchestrate — main entry point, returns DashboardResponse
 router.post('/orchestrate', async (req, res, next) => {
   try {
     const { businessType, address } = req.body;
@@ -52,69 +66,39 @@ router.post('/orchestrate/answer', async (req, res, next) => {
     const { businessType, address } = currentState;
     const ctx = createTrace(address, businessType);
 
-    const updatedNarrative = await llm(ctx, 'answerUpdate', {
-      systemPrompt: 'You update business location assessment narratives based on new user input. Write 1-3 sentences in plain conversational English.',
+    const response = await llm(ctx, 'answerUpdate', {
+      systemPrompt: 'You update business location assessment notes based on new user input. Write 1-3 sentences in plain conversational English.',
       prompt: `The user was asked "${widgetId}" and answered: ${JSON.stringify(answer)}.\nBusiness: ${businessType}\nLocation: ${address}\n\nWrite a brief updated assessment note incorporating this answer.`
     });
 
-    const actions: BoardAction[] = [{
-      type: 'update_widget',
-      widgetId,
-      narrative: updatedNarrative
-    }];
-
-    res.json({ actions });
+    res.json({ message: response });
   } catch (err) {
     next(err);
   }
 });
 
-// POST /api/reassess — pin drag
-router.post('/reassess', async (req, res, next) => {
+// POST /api/synthesize — generate synthesis from tool results
+router.post('/synthesize', async (req, res, next) => {
   try {
-    const { businessType, newLat, newLng } = req.body;
-    if (!businessType || newLat === undefined || newLng === undefined) {
-      res.status(400).json({ error: 'businessType, newLat, and newLng are required' });
+    const { businessType, address, zoning, competition, footTraffic, neighborhood, permits } = req.body;
+    if (!businessType || !address || !zoning) {
+      res.status(400).json({ error: 'businessType, address, and zoning are required' });
       return;
     }
-
-    const addressLabel = `${newLat.toFixed(4)},${newLng.toFixed(4)}`;
-    const ctx = createTrace(addressLabel, businessType);
-    const community = await getCommunityPlan(ctx, newLat, newLng);
-    const mapping = await mapBusinessType(ctx, businessType);
-
-    const results = await Promise.allSettled([
-      checkZoning(ctx, addressLabel, businessType, newLat, newLng, community.cpName, mapping),
-      competitiveLandscape(ctx, newLat, newLng, mapping.naicsCodes, 0.5, businessType, addressLabel),
-      footTraffic(ctx, newLat, newLng, 0.3, businessType, addressLabel),
-      permitRoadmap(ctx, newLat, newLng, community.cpName, [businessType], businessType, addressLabel),
-      neighborhoodProfile(ctx, newLat, newLng, community.cpName, businessType, addressLabel)
+    const ctx = createTrace(address, businessType);
+    const [synthesis, followUps] = await Promise.all([
+      generateStructuredSynthesis(ctx, businessType, address, {
+        zoning, competition, traffic: footTraffic, hood: neighborhood, permits
+      }),
+      selectFollowUpQuestions(ctx, businessType, zoning, competition, footTraffic, address)
     ]);
-
-    const actions: BoardAction[] = [];
-    const diffs: Record<string, 'better' | 'worse' | 'same'> = {};
-    const widgetIds = ['zoning', 'competition', 'footTraffic', 'permits', 'neighborhood'];
-
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      const id = widgetIds[i];
-      if (r.status === 'fulfilled') {
-        actions.push({
-          type: 'spawn_widget', widgetId: id,
-          data: r.value.data, narrative: r.value.narrative, glowColor: r.value.glowColor
-        });
-        diffs[id] = 'same';
-      } else {
-        console.error(`reassess ${id} failed:`, r.reason?.message);
-        diffs[id] = 'worse';
-      }
-    }
-
-    res.json({ actions, diffs });
+    res.json({ synthesis, questions: followUps });
   } catch (err) {
     next(err);
   }
 });
+
+// --- Individual tool endpoints (unchanged) ---
 
 // POST /api/zoning
 router.post('/zoning', async (req, res, next) => {

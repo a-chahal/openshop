@@ -28,17 +28,54 @@ function geometryParam(lat: number, lng: number): string {
 
 export async function geocode(ctx: TraceContext, address: string): Promise<GeocodedLocation> {
   return traced(ctx, 'arcgis', 'geocode', address, async () => {
+    // Strip city/state/zip — the geocoder adds City=San Diego & Region=CA itself
+    const streetOnly = address
+      .replace(/,?\s*San\s+Diego\s*/i, '')
+      .replace(/,?\s*CA\s*/i, '')
+      .replace(/,?\s*\d{5}(-\d{4})?\s*$/, '')
+      .replace(/,\s*$/, '')
+      .trim();
+
+    // Try structured first (Address + City + Region)
     const params = new URLSearchParams({
-      Address: address,
+      Address: streetOnly,
       City: 'San Diego',
       Region: 'CA',
       outFields: '*',
       outSR: '4326',
       f: 'json'
     });
-    const url = `${BASE}/Locators/PUD_CCS_Locator/GeocodeServer/findAddressCandidates?${params}`;
-    const body = await arcgisFetch(url);
-    const candidates = body.candidates;
+    let url = `${BASE}/Locators/PUD_CCS_Locator/GeocodeServer/findAddressCandidates?${params}`;
+    let body = await arcgisFetch(url);
+    let candidates = body.candidates;
+
+    // Fallback: try SingleLine if structured fails
+    if (!candidates || candidates.length === 0) {
+      const slParams = new URLSearchParams({
+        SingleLine: `${streetOnly}, San Diego, CA`,
+        outFields: '*',
+        outSR: '4326',
+        f: 'json'
+      });
+      url = `${BASE}/Locators/PUD_CCS_Locator/GeocodeServer/findAddressCandidates?${slParams}`;
+      body = await arcgisFetch(url);
+      candidates = body.candidates;
+    }
+
+    // Fallback 2: Esri world geocoder scoped to San Diego
+    if (!candidates || candidates.length === 0) {
+      const worldParams = new URLSearchParams({
+        SingleLine: `${streetOnly}, San Diego, CA`,
+        outFields: '*',
+        outSR: '4326',
+        f: 'json',
+        searchExtent: '-117.35,32.5,-116.9,33.15',  // San Diego bounding box
+      });
+      const worldUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${worldParams}`;
+      body = await arcgisFetch(worldUrl);
+      candidates = body.candidates?.filter((c: any) => c.score >= 80) ?? [];
+    }
+
     if (!candidates || candidates.length === 0) {
       throw new Error(`Address not found in San Diego: "${address}". Try a nearby street number or verify the address exists.`);
     }

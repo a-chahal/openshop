@@ -129,3 +129,55 @@ export interface AssessmentData {
   permits: ToolResult<PermitData> | null;
   neighborhood: ToolResult<NeighborhoodData> | null;
 }
+
+// --- Dashboard types (new UI) ---
+
+export type GlowColor = 'green' | 'amber' | 'red' | 'neutral';
+
+export interface FeasibilityFactor {
+  factor: string;
+  signal: 'positive' | 'neutral' | 'negative';
+  detail: string;
+}
+
+export interface NextStep {
+  step: string;
+  priority: 'required' | 'recommended' | 'optional';
+  estimatedDays?: number;
+}
+
+export interface StructuredSynthesis {
+  possibleVerdict: 'yes' | 'conditional' | 'no';
+  possibleSummary: string;
+  feasibilityScore: number;
+  feasibilityFactors: FeasibilityFactor[];
+  nextSteps: NextStep[];
+  openQuestions: string[];
+  overallGlowColor: GlowColor;
+}
+
+export interface FollowUpQuestion {
+  id: string;
+  question: string;
+  inputType: string;
+  options?: string[];
+}
+
+export interface DashboardResponse {
+  geocoded: { lat: number; lng: number };
+  communityPlan: string;
+  zoneName: string;
+  zoning: ToolResult<ZoningData>;
+  competition: ToolResult<CompetitionData> | null;
+  footTraffic: ToolResult<FootTrafficData> | null;
+  neighborhood: ToolResult<NeighborhoodData> | null;
+  permits: ToolResult<PermitData>;
+  synthesis: StructuredSynthesis;
+  questions: FollowUpQuestion[];
+  traceId: string;
+}
+
+export interface ParsedIntent {
+  businessType: string;
+  address: string;
+}
